@@ -192,7 +192,7 @@ def main():
         print("GEMINI_API_KEY=your_gemini_api_key_here")
         return
 
-    if not os.path.exists('../credentials.json'):
+    if not os.path.exists('data/credentials.json'):
         print("❌ Gmail credentials.json not found")
         print("Please download credentials.json from Google Cloud Console")
         print("https://console.cloud.google.com/")
