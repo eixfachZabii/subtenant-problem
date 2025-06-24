@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "email_id": "197a1f619888f458",
+      "sender": "Anna Camarena Herreros <annacamarena45@gmail.com>",
+      "subject": "WG",
+      "date": "2025-06-24T14:42:16+02:00",
+      "processed_at": "2025-06-24T16:31:58.702541",
+      "score": {
+        "total": 50.0,
+        "student_status": 50,
+        "non_smoking": 50,
+        "financial_capability": 50,
+        "timing_alignment": 50,
+        "communication_quality": 50,
+        "cultural_fit": 50
+      },
+      "reasoning": "Emergency parsing - JSON response failed",
+      "red_flags": [
+        "PARSING_ERROR"
+      ],
+      "email_body": "Hallo 🤠, mein Name ist Anna, ich bin 24 Jahre alt und ich komme aus Spanien. Ich studiere Bauingenieurwesen im Master an der TUM.\r\nIch liebe es, neue Musik zu entdecken und Kaffee zu trinken.\r\nIch freue mich sehr darauf, neue Leute kennenzulernen und meine Zeit in München zu genießen :)))\r\n(mein Instagram ist @annacamarenaa)"
+    }
+  ],
+  "metadata": {
+    "created": "2025-06-24T16:31:51.223879",
+    "last_updated": "2025-06-24T16:31:58.702619",
+    "total_processed": 1
+  }
+}

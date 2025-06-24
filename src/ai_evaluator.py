@@ -78,8 +78,11 @@ class AIEvaluator:
                 )
             )
 
+            # Extract text from response (handle new API structure)
+            response_text = self.extract_response_text(response)
+
             # Parse the response
-            result = self.parse_ai_response(response.text)
+            result = self.parse_ai_response(response_text)
 
             print(f"🤖 AI Evaluation completed for: {email_data['sender']}")
             print(f"   Total Score: {result.total_score}/100")
@@ -101,102 +104,149 @@ class AIEvaluator:
                 red_flags=["AI_EVALUATION_ERROR"]
             )
 
+    def extract_response_text(self, response) -> str:
+        """Extract text from Gemini response (handles different API versions)"""
+        try:
+            print(f"🔍 Response type: {type(response)}")
+            print(f"🔍 Has text attr: {hasattr(response, 'text')}")
+            print(f"🔍 Has candidates: {hasattr(response, 'candidates')}")
+            print(f"🔍 Has parts: {hasattr(response, 'parts')}")
+
+            # Method 1: Direct text access (most common)
+            if hasattr(response, 'text') and response.text:
+                print("✅ Using direct .text access")
+                return response.text
+
+            # Method 2: Through candidates
+            if hasattr(response, 'candidates') and response.candidates:
+                print(f"🔍 Found {len(response.candidates)} candidates")
+                candidate = response.candidates[0]
+
+                if hasattr(candidate, 'content') and candidate.content:
+                    content = candidate.content
+                    if hasattr(content, 'parts') and content.parts:
+                        print(f"🔍 Found {len(content.parts)} parts")
+                        part = content.parts[0]
+                        if hasattr(part, 'text') and part.text:
+                            print("✅ Using candidates[0].content.parts[0].text")
+                            return part.text
+
+            # Method 3: Direct parts access
+            if hasattr(response, 'parts') and response.parts:
+                print(f"🔍 Found {len(response.parts)} direct parts")
+                if response.parts[0] and hasattr(response.parts[0], 'text'):
+                    print("✅ Using direct parts[0].text")
+                    return response.parts[0].text
+
+            # Method 4: Check if response is blocked/filtered
+            if hasattr(response, 'prompt_feedback'):
+                feedback = response.prompt_feedback
+                if hasattr(feedback, 'block_reason'):
+                    print(f"⚠️ Response blocked: {feedback.block_reason}")
+                    return "Response was blocked by safety filters"
+
+            # Method 5: Try to resolve if it's a streaming response
+            if hasattr(response, 'resolve'):
+                print("🔄 Trying to resolve response...")
+                response.resolve()
+                if hasattr(response, 'text') and response.text:
+                    return response.text
+
+            # Method 6: Check _result attribute
+            if hasattr(response, '_result') and response._result:
+                result = response._result
+                print(f"🔍 _result type: {type(result)}")
+                if hasattr(result, 'candidates') and result.candidates:
+                    candidate = result.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content:
+                        content = candidate.content
+                        if hasattr(content, 'parts') and content.parts:
+                            part = content.parts[0]
+                            if hasattr(part, 'text'):
+                                print("✅ Using _result.candidates[0].content.parts[0].text")
+                                return part.text
+
+            # Emergency: Just convert to string
+            response_str = str(response)
+            print(f"🚨 Using string conversion: {response_str[:100]}...")
+            return response_str
+
+        except Exception as e:
+            print(f"❌ Error extracting response text: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Last resort
+            return f"Extraction failed: {str(e)}"
+
     def create_evaluation_prompt(self, email_data: Dict) -> str:
-        """Create a detailed prompt for AI evaluation"""
+        """Create a simplified prompt for AI evaluation"""
 
-        rental_details = f"""
-RENTAL OFFER DETAILS:
-- Location: {RENTAL_INFO['address']}
-- Rent: {RENTAL_INFO['rent']}€ + {RENTAL_INFO['utilities']}€ utilities = {RENTAL_INFO['total_monthly']}€ total
-- Deposit: {RENTAL_INFO['deposit']}€
-- Period: {RENTAL_INFO['start_date']} to {RENTAL_INFO['end_date']} ({RENTAL_INFO['duration_months']} months)
-- Room: Furnished {RENTAL_INFO['room_type']}, {RENTAL_INFO['room_height']} height
-- Requirements: MUST be registered student, MUST be non-smoker
-- WG: Shared bathroom/WC, other residents are friendly students
-"""
+        # Simplified prompt that's less likely to be blocked
+        prompt = f"""
+Analyze this rental application email and return a JSON score.
 
-        email_content = f"""
-APPLICANT EMAIL:
+EMAIL DETAILS:
 From: {email_data['sender']}
 Subject: {email_data['subject']}
-Date: {email_data['date']}
+Content: {email_data['body'][:1000]}
 
-Content:
-{email_data['body']}
-"""
+REQUIREMENTS:
+- Must be a student
+- Must be non-smoker  
+- Period: September 2025 to March 2026
+- Rent: 636€/month in Munich
 
-        evaluation_criteria = f"""
-EVALUATION CRITERIA (0-100 points each):
+Score each category 0-100:
 
-1. STUDENT STATUS ({SCORING_WEIGHTS['student_status']}% weight):
-   - Look for: university mentions, student ID, enrollment proof, academic terms
-   - Required: Must be registered student (immatrikuliert)
-   - Keywords: {', '.join(EVALUATION_KEYWORDS['student_indicators'])}
-
-2. NON-SMOKING ({SCORING_WEIGHTS['non_smoking']}% weight):
-   - Look for: explicit non-smoking confirmation
-   - Required: Must confirm non-smoker status
-   - Keywords: {', '.join(EVALUATION_KEYWORDS['non_smoking_indicators'])}
-
-3. FINANCIAL CAPABILITY ({SCORING_WEIGHTS['financial_capability']}% weight):
-   - Look for: income sources, parental support, savings, job mentions
-   - Required: Can afford {RENTAL_INFO['total_monthly']}€/month + {RENTAL_INFO['deposit']}€ deposit
-   - Keywords: {', '.join(EVALUATION_KEYWORDS['financial_indicators'])}
-
-4. TIMING ALIGNMENT ({SCORING_WEIGHTS['timing_alignment']}% weight):
-   - Look for: availability matching exact dates, semester planning
-   - Required: Available September 2025 - March 2026
-   - Keywords: {', '.join(EVALUATION_KEYWORDS['timing_indicators'])}
-
-5. COMMUNICATION QUALITY ({SCORING_WEIGHTS['communication_quality']}% weight):
-   - Assess: German/English proficiency, completeness, professionalism
-   - Look for: proper introduction, specific interest, contact details
-
-6. CULTURAL FIT ({SCORING_WEIGHTS['cultural_fit']}% weight):
-   - Look for: WG interest, lifestyle compatibility, Munich/neighborhood appreciation
-   - Assess: Personality indicators, social compatibility
-"""
-
-        prompt = f"""
-You are an expert rental application evaluator. Analyze this tenant application email against the specific rental requirements.
-
-{rental_details}
-
-{email_content}
-
-{evaluation_criteria}
-
-INSTRUCTIONS:
-1. Score each criterion from 0-100 points
-2. Identify any red flags (smoking mentions, financial concerns, timing issues, etc.)
-3. Provide reasoning for your scoring decisions
-4. Be strict but fair - this is a competitive rental market
-
-RESPOND WITH VALID JSON ONLY:
+RESPOND WITH ONLY THIS JSON FORMAT:
 {{
-    "student_status": <score 0-100>,
-    "non_smoking": <score 0-100>,
-    "financial_capability": <score 0-100>,
-    "timing_alignment": <score 0-100>,
-    "communication_quality": <score 0-100>,
-    "cultural_fit": <score 0-100>,
-    "reasoning": "<detailed explanation of scoring>",
-    "red_flags": ["<flag1>", "<flag2>"]
+    "student_status": 80,
+    "non_smoking": 70,
+    "financial_capability": 75,
+    "timing_alignment": 85,
+    "communication_quality": 90,
+    "cultural_fit": 80,
+    "reasoning": "Brief explanation here",
+    "red_flags": []
 }}
 """
-        return prompt
+        return prompt.strip()
 
     def parse_ai_response(self, response_text: str) -> TenantScore:
         """Parse AI response and calculate weighted total score"""
         try:
-            # Extract JSON from response
+            # Clean response text
             response_text = response_text.strip()
+
+            # Handle markdown code blocks
             if response_text.startswith('```json'):
-                response_text = response_text[7:-3]
+                start = response_text.find('{')
+                end = response_text.rfind('}') + 1
+                response_text = response_text[start:end]
             elif response_text.startswith('```'):
-                response_text = response_text[3:-3]
+                start = response_text.find('{')
+                end = response_text.rfind('}') + 1
+                response_text = response_text[start:end]
+
+            # Find JSON in response if mixed with other text
+            if '{' in response_text and '}' in response_text:
+                start = response_text.find('{')
+                end = response_text.rfind('}') + 1
+                response_text = response_text[start:end]
+
+            print(f"🔍 Parsing JSON: {response_text[:200]}...")
 
             data = json.loads(response_text)
+
+            # Validate required fields
+            required_fields = ['student_status', 'non_smoking', 'financial_capability',
+                               'timing_alignment', 'communication_quality', 'cultural_fit']
+
+            for field in required_fields:
+                if field not in data:
+                    print(f"⚠️ Missing field: {field}, setting to 0")
+                    data[field] = 0
 
             # Calculate weighted total score
             total_score = (
@@ -223,10 +273,53 @@ RESPOND WITH VALID JSON ONLY:
         except json.JSONDecodeError as e:
             print(f"❌ Failed to parse AI response as JSON: {e}")
             print(f"Raw response: {response_text}")
-            raise
+
+            # Emergency fallback: try to extract numbers from text
+            return self.emergency_parse_response(response_text)
+
         except KeyError as e:
             print(f"❌ Missing required field in AI response: {e}")
+            print(f"Available fields: {list(data.keys()) if 'data' in locals() else 'None'}")
             raise
+
+    def emergency_parse_response(self, response_text: str) -> TenantScore:
+        """Emergency parser if JSON parsing fails"""
+        print("🚨 Using emergency response parser...")
+
+        # Default scores
+        scores = {
+            'student_status': 50,
+            'non_smoking': 50,
+            'financial_capability': 50,
+            'timing_alignment': 50,
+            'communication_quality': 50,
+            'cultural_fit': 50
+        }
+
+        # Try to extract some basic info
+        text_lower = response_text.lower()
+
+        # Look for student indicators
+        if any(word in text_lower for word in ['student', 'studium', 'uni', 'university']):
+            scores['student_status'] = 80
+
+        # Look for non-smoking indicators
+        if any(word in text_lower for word in ['nichtraucher', 'non-smoker', 'rauchfrei']):
+            scores['non_smoking'] = 90
+
+        total_score = sum(scores[key] * SCORING_WEIGHTS[key] / 100 for key in scores)
+
+        return TenantScore(
+            total_score=round(total_score, 1),
+            student_status=scores['student_status'],
+            non_smoking=scores['non_smoking'],
+            financial_capability=scores['financial_capability'],
+            timing_alignment=scores['timing_alignment'],
+            communication_quality=scores['communication_quality'],
+            cultural_fit=scores['cultural_fit'],
+            reasoning="Emergency parsing - JSON response failed",
+            red_flags=["PARSING_ERROR"]
+        )
 
 
 # Test function

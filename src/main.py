@@ -18,7 +18,7 @@ class SubtenantFinder:
     def __init__(self):
         self.email_reader = EmailReader()
         self.ai_evaluator = AIEvaluator()
-        self.candidates_file = "candidates.json"
+        self.candidates_file = "data/candidates.json"
         self.candidates_data = self.load_candidates()
 
     def load_candidates(self) -> Dict:
@@ -192,7 +192,7 @@ def main():
         print("GEMINI_API_KEY=your_gemini_api_key_here")
         return
 
-    if not os.path.exists('credentials.json'):
+    if not os.path.exists('../credentials.json'):
         print("❌ Gmail credentials.json not found")
         print("Please download credentials.json from Google Cloud Console")
         print("https://console.cloud.google.com/")
