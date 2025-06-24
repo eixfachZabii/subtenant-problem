@@ -10,4 +10,4 @@
 
 .env
 src/token.json
-src/data/credentials.json
+src/data/*

@@ -41,7 +41,7 @@ class AIEvaluator:
 
         # Try models in order of success - Strategy 3 worked with gemini-1.5-flash
         model_names = [
-            "gemini-1.5-flash",  # Strategy 3 success model
+            "gemini-2.0-flash",  # Strategy 3 success model
             "gemini-1.5-pro",  # Alternative that often works
             API_CONFIG['gemini_model'],  # From config
             "gemini-2.5-flash",
