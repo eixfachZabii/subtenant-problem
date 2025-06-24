@@ -113,7 +113,7 @@ SECRETARY_ALGORITHM = {
 
 # API Configuration
 API_CONFIG = {
-    "gemini_model": "gemini-1.5-flash",
+    "gemini_model": "gemini-2.5-flash",
     "max_tokens": 800,
     "temperature": 0.1,  # Lower for more consistent scoring
     "timeout_seconds": 30

@@ -41,7 +41,7 @@ class AIEvaluator:
 
         # Try models in order of success
         model_names = [
-            "gemini-1.5-flash",  # Most reliable
+            "gemini-2.0-flash",  # Most reliable
             "gemini-1.5-pro",
             "gemini-2.0-flash",
             API_CONFIG['gemini_model'],
