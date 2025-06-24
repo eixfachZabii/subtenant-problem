@@ -8,6 +8,6 @@
 /dataSources.local.xml
 
 
-credentials.json
 .env
 src/token.json
+credentials.json
