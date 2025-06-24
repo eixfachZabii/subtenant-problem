@@ -18,54 +18,89 @@ RENTAL_INFO = {
 # Email Configuration
 EMAIL_CONFIG = {
     "check_interval_minutes": 15,
-    "max_emails_per_check": 50  # Prevent overwhelming the system
+    "max_emails_per_check": 50
 }
 
-# UPDATED: Practical Scoring Weights (must sum to 100)
+# UPDATED: Your Real Priorities - Scoring Weights (must sum to 100)
 SCORING_WEIGHTS = {
-    "financial_capability": 30,  # Can afford rent + deposit + utilities
-    "non_smoking": 25,           # Absolute requirement - no exceptions
-    "timing_alignment": 20,      # Available for exact period (Sept 2025 - March 2026)
-    "german_residency": 15,      # From Germany (easier for deposits, legal issues)
-    "tidiness_cleanliness": 10,  # Clean, organized, respectful of property
+    "timing_alignment": 35,      # MOST IMPORTANT: Exact 7 months (Sept 2025 - March 2026)
+    "financial_capability": 25,  # Important: Can afford rent + deposit
+    "trustworthiness": 20,       # Important: Reliable, references, stable background
+    "furniture_acceptance": 15,  # Important: Explicitly mentions keeping your furniture
+    "personalization": 5,        # Bonus: Non-generic, personalized application
 }
 
-# Required Keywords for Practical Scoring
+# Required Keywords for Your Priorities
 EVALUATION_KEYWORDS = {
+    "timing_exact_match": [
+        "september 2025", "sept 2025", "march 2026", "märz 2026", "7 monate", "7 months",
+        "semester", "exchange semester", "auslandssemester", "temporary", "zwischenmiete",
+        "befristet", "ab september", "bis märz", "from september", "until march",
+        "exactly 7 months", "genau 7 monate", "september bis märz"
+    ],
+    "timing_flexible": [
+        "flexible", "länger möglich", "can extend", "shorter also ok", "kürzere zeit"
+    ],
     "financial_indicators": [
         "einkommen", "income", "gehalt", "salary", "bafög", "bafoeg", "scholarship", "stipendium",
         "eltern", "parents", "bürgschaft", "guarantee", "job", "arbeit", "arbeite", "angestellt",
         "finanzierung", "budget", "bezahlen", "afford", "kaution", "deposit", "euro", "€",
-        "verdiene", "earning", "werkstudent", "minijob", "vollzeit", "teilzeit"
+        "verdiene", "earning", "werkstudent", "minijob", "vollzeit", "teilzeit", "savings", "ersparnisse"
     ],
-    "non_smoking_indicators": [
-        "nichtraucher", "nichtraucherin", "non-smoker", "nonsmoker", "nicht rauchen",
-        "no smoking", "rauchfrei", "smoke-free", "anti-raucher"
+    "trustworthiness_indicators": [
+        "referenzen", "references", "previous landlord", "vorherige vermieter", "recommendation",
+        "empfehlung", "verantwortlich", "responsible", "zuverlässig", "reliable", "ehrlich", "honest",
+        "keine probleme", "no problems", "good tenant", "guter mieter", "schufa", "clean record",
+        "arbeitsvertrag", "employment contract", "unbefristet", "permanent position"
     ],
-    "smoking_indicators": [
-        "raucher", "raucherin", "smoking", "rauchen", "zigaretten", "cigarettes"
+    "furniture_acceptance": [
+        "möbliert", "furnished", "furniture", "möbel", "einrichtung", "complete setup",
+        "perfekt möbliert", "fully furnished", "everything included", "alles enthalten",
+        "deine möbel", "your furniture", "existing furniture", "vorhandene einrichtung",
+        "übernehme alles", "take everything", "nothing to buy", "nichts kaufen"
     ],
-    "timing_indicators": [
-        "september", "sept", "märz", "march", "2025", "2026", "7 monate", "7 months",
-        "semester", "exchange", "austausch", "temporary", "zwischenmiete", "befristet",
-        "ab september", "bis märz", "from september", "until march"
+    "furniture_problems": [
+        "eigene möbel", "own furniture", "bring furniture", "möbel mitbringen",
+        "new furniture", "neue möbel", "change furniture", "möbel ändern"
     ],
-    "german_residency_indicators": [
-        "deutschland", "germany", "deutsch", "german", "de", "münchen", "munich",
-        "berlin", "hamburg", "köln", "düsseldorf", "stuttgart", "frankfurt",
-        "geboren in", "born in", "aus deutschland", "from germany", "deutsche",
-        "bundesland", "staat", "staatsangehörigkeit", "nationality"
+    "personalization_indicators": [
+        "jutastraße", "neuhausen", "nymphenburg", "specific location mention",
+        "why this room", "warum dieses zimmer", "personal reason", "persönlicher grund",
+        "my situation", "meine situation", "about me", "über mich", "my background"
     ],
-    "international_indicators": [
-        "spain", "spanien", "italy", "italien", "france", "frankreich", "usa",
-        "china", "india", "brasil", "mexico", "turkey", "türkei", "poland", "polen",
-        "international", "exchange student", "erasmus", "visa", "permit"
-    ],
-    "tidiness_indicators": [
-        "sauber", "clean", "ordentlich", "tidy", "organized", "organisiert", "aufgeräumt",
-        "reinlich", "hygiene", "respektvoll", "respectful", "verantwortlich", "responsible",
-        "zuverlässig", "reliable", "pfleglich", "careful", "schonend"
+    "generic_indicators": [
+        "dear sir/madam", "sehr geehrte damen und herren", "to whom it may concern",
+        "i am writing to", "hiermit bewerbe ich mich", "standard application",
+        "copy paste", "same message", "multiple applications"
     ]
+}
+
+# Your Red Flags - Auto-reject or heavy penalty
+RED_FLAGS = {
+    "wrong_timeframe": "Wants different dates or permanent rental",
+    "wants_longer": "Explicitly wants to stay longer than March 2026",
+    "wants_shorter": "Only wants 2-3 months or less",
+    "no_financial_info": "No mention of income, job, or how they'll pay",
+    "own_furniture": "Wants to bring own furniture or change setup",
+    "too_cheap_expectations": "Expects much lower rent or negotiation",
+    "group_application": "Wants to bring friends or multiple people",
+    "party_lifestyle": "Heavy emphasis on parties, social life, drinking",
+    "generic_application": "Clearly copy-pasted, no personalization",
+    "unreliable_contact": "No phone number or proper contact info"
+}
+
+# Your Bonus Criteria
+BONUS_CRITERIA = {
+    "perfect_timing_match": 15,      # Explicitly mentions Sept 2025 - March 2026
+    "exchange_student": 10,          # Exchange/semester abroad (reliable timeline)
+    "furniture_enthusiasm": 10,      # Specifically mentions loving furnished setup
+    "local_knowledge": 5,            # Knows Munich/Neuhausen area
+    "professional_references": 10,   # Offers landlord references
+    "stable_employment": 8,          # Has employment contract or stable income
+    "deposit_ready": 5,              # Mentions having deposit available
+    "personal_connection": 8,        # Mentions why specifically your place appeals
+    "german_language": 3,            # Application in good German (trust factor)
+    "detailed_application": 5,       # Thorough, thoughtful application
 }
 
 # Secretary Problem Settings
@@ -78,31 +113,8 @@ SECRETARY_ALGORITHM = {
 
 # API Configuration
 API_CONFIG = {
-    "gemini_model": "gemini-1.5-flash",  # Working model for bypass
+    "gemini_model": "gemini-1.5-flash",
     "max_tokens": 800,
     "temperature": 0.1,  # Lower for more consistent scoring
     "timeout_seconds": 30
-}
-
-# PRACTICAL RED FLAGS - Auto-reject candidates
-RED_FLAGS = {
-    "smoking_mentioned": "Mentions smoking or being a smoker",
-    "wrong_timeframe": "Wants permanent rental or wrong dates",
-    "no_financial_info": "No mention of income, job, or financial capability",
-    "high_risk_country": "From country with difficult legal recourse",
-    "too_cheap": "Seems to expect much lower rent",
-    "group_rental": "Wants to bring multiple people",
-    "pets_mentioned": "Mentions having pets (if not allowed)",
-    "party_lifestyle": "Mentions parties, loud music, drinking heavily"
-}
-
-# PRACTICAL BONUS POINTS
-BONUS_CRITERIA = {
-    "german_citizen": 10,           # German passport holder
-    "munich_local": 5,              # Already lives in Munich
-    "professional_job": 10,         # Has stable employment
-    "previous_wg_experience": 5,    # Mentions previous WG living
-    "references_offered": 10,       # Offers references from previous landlords
-    "early_availability": 5,        # Available before September if needed
-    "deposit_ready": 10,            # Mentions having deposit ready
 }

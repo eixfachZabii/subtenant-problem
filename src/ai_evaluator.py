@@ -15,13 +15,13 @@ from config import RENTAL_INFO, SCORING_WEIGHTS, EVALUATION_KEYWORDS, API_CONFIG
 
 @dataclass
 class TenantScore:
-    """Data class for practical tenant evaluation scores"""
+    """Data class for tenant evaluation scores based on your real priorities"""
     total_score: float
-    financial_capability: float
-    non_smoking: float
     timing_alignment: float
-    german_residency: float
-    tidiness_cleanliness: float
+    financial_capability: float
+    trustworthiness: float
+    furniture_acceptance: float
+    personalization: float
     reasoning: str
     red_flags: list
     bonus_points: int
@@ -39,14 +39,12 @@ class AIEvaluator:
 
         genai.configure(api_key=api_key)
 
-        # Try models in order of success - Strategy 3 worked with gemini-1.5-flash
+        # Try models in order of success
         model_names = [
-            "gemini-2.0-flash",  # Strategy 3 success model
-            "gemini-1.5-pro",  # Alternative that often works
-            API_CONFIG['gemini_model'],  # From config
-            "gemini-2.5-flash",
-            "gemini-1.0-pro",
-            "models/gemini-1.5-flash"
+            "gemini-1.5-flash",  # Most reliable
+            "gemini-1.5-pro",
+            "gemini-2.0-flash",
+            API_CONFIG['gemini_model'],
         ]
 
         for model_name in model_names:
@@ -54,7 +52,7 @@ class AIEvaluator:
                 self.model = genai.GenerativeModel(model_name)
                 # Test with academic evaluation approach
                 test_response = self.model.generate_content(
-                    "Evaluate academic background: Student studying engineering. Score: {\"student_status\": 85}"
+                    "Test response: {\"timing\": 85}"
                 )
                 print(f"✅ Gemini API configured successfully with model: {model_name}")
                 return
@@ -62,29 +60,23 @@ class AIEvaluator:
                 print(f"❌ Model {model_name} failed: {e}")
                 continue
 
-        # If no model works, raise an error
         raise ValueError("No working Gemini model found. Please check API key and model availability.")
 
     def evaluate_candidate(self, email_data: Dict) -> TenantScore:
-        """Evaluate a tenant candidate based on their email application"""
+        """Evaluate a tenant candidate based on YOUR real priorities"""
 
-        # Create evaluation prompt
         prompt = self.create_evaluation_prompt(email_data)
 
         try:
-            # Generate AI response using working configuration
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=800,  # Reduced for faster response
-                    temperature=0.1,  # Lower temperature for consistency
+                    max_output_tokens=800,
+                    temperature=0.1,
                 )
             )
 
-            # Extract text from response (handle new API structure)
             response_text = self.extract_response_text(response)
-
-            # Parse the response
             result = self.parse_ai_response(response_text)
 
             print(f"🤖 AI Evaluation completed for: {email_data['sender']}")
@@ -94,140 +86,130 @@ class AIEvaluator:
 
         except Exception as e:
             print(f"❌ Error during AI evaluation: {e}")
-            # Return default low scores on error
             return TenantScore(
                 total_score=0,
-                financial_capability=0,
-                non_smoking=0,
                 timing_alignment=0,
-                german_residency=0,
-                tidiness_cleanliness=0,
+                financial_capability=0,
+                trustworthiness=0,
+                furniture_acceptance=0,
+                personalization=0,
                 reasoning=f"Error during evaluation: {str(e)}",
                 red_flags=["AI_EVALUATION_ERROR"],
                 bonus_points=0
             )
 
-    def extract_response_text(self, response) -> str:
-        """Extract text from Gemini response (handles different API versions)"""
-        try:
-            print(f"🔍 Response type: {type(response)}")
-
-            # Method 1: Try candidates path first (most reliable for new API)
-            if hasattr(response, 'candidates') and response.candidates:
-                print(f"✅ Found {len(response.candidates)} candidates")
-                candidate = response.candidates[0]
-
-                if hasattr(candidate, 'content') and candidate.content:
-                    content = candidate.content
-                    if hasattr(content, 'parts') and content.parts:
-                        print(f"✅ Found {len(content.parts)} parts")
-                        part = content.parts[0]
-                        if hasattr(part, 'text') and part.text:
-                            print("✅ Using candidates[0].content.parts[0].text")
-                            return part.text
-
-            # Method 2: Try direct text access (only for simple responses)
-            try:
-                if hasattr(response, 'text') and response.text:
-                    print("✅ Using direct .text access")
-                    return response.text
-            except ValueError:
-                # This is expected for complex responses, just continue
-                print("ℹ️  Direct .text access not available for this response type")
-
-            # Method 3: Direct parts access
-            if hasattr(response, 'parts') and response.parts:
-                print(f"✅ Found {len(response.parts)} direct parts")
-                if response.parts[0] and hasattr(response.parts[0], 'text'):
-                    print("✅ Using direct parts[0].text")
-                    return response.parts[0].text
-
-            # Method 4: Check if response is blocked/filtered
-            if hasattr(response, 'prompt_feedback'):
-                feedback = response.prompt_feedback
-                if hasattr(feedback, 'block_reason'):
-                    print(f"⚠️ Response blocked: {feedback.block_reason}")
-                    return "Response was blocked by safety filters"
-
-            # Method 5: Try to resolve if it's a streaming response
-            if hasattr(response, 'resolve'):
-                print("🔄 Trying to resolve response...")
-                response.resolve()
-                try:
-                    if hasattr(response, 'text') and response.text:
-                        return response.text
-                except ValueError:
-                    pass
-
-            # Method 6: Check _result attribute
-            if hasattr(response, '_result') and response._result:
-                result = response._result
-                print(f"🔍 _result type: {type(result)}")
-                if hasattr(result, 'candidates') and result.candidates:
-                    candidate = result.candidates[0]
-                    if hasattr(candidate, 'content') and candidate.content:
-                        content = candidate.content
-                        if hasattr(content, 'parts') and content.parts:
-                            part = content.parts[0]
-                            if hasattr(part, 'text'):
-                                print("✅ Using _result.candidates[0].content.parts[0].text")
-                                return part.text
-
-            # Emergency: Just convert to string
-            response_str = str(response)
-            print(f"🚨 Using string conversion: {response_str[:100]}...")
-            return response_str
-
-        except Exception as e:
-            print(f"❌ Error extracting response text: {e}")
-            import traceback
-            traceback.print_exc()
-
-            # Last resort
-            return f"Extraction failed: {str(e)}"
-
     def create_evaluation_prompt(self, email_data: Dict) -> str:
-        """Create practical rental evaluation prompt"""
+        """Create evaluation prompt based on YOUR real priorities"""
 
-        # Practical rental criteria - focused on what actually matters
         prompt = f"""
-Evaluate this person's suitability for a temporary room rental (September 2025 - March 2026) in Munich, Germany.
+You are evaluating rental applications for a 7-month furnished room in Munich (Sept 2025 - March 2026).
+The owner will return and needs their furniture kept exactly as is.
 
-Rental Details: 636€/month, 1608€ deposit, furnished room, no smoking allowed
+CRITICAL: Score based on these priorities:
+1. TIMING (35%): Exact 7 months only - no longer, no shorter
+2. FINANCIAL (25%): Can afford 636€/month + 1608€ deposit  
+3. TRUSTWORTHINESS (20%): Reliable, references, stable background
+4. FURNITURE (15%): Will keep furnished setup, no changes
+5. PERSONALIZATION (5%): Thoughtful, specific application (not generic)
 
 Applicant Email:
 From: {email_data['sender']}
 Subject: {email_data['subject']}
-Content: {email_data['body'][:600]}
+Content: {email_data['body'][:800]}
 
-Rate each practical criterion (0-100):
+Rate each criterion (0-100):
 
-1. FINANCIAL CAPABILITY (30% weight): Can they afford 636€ rent + 1608€ deposit + utilities? Look for: income, job, salary, BAföG, parental support, savings mentioned.
+TIMING_ALIGNMENT: 
+- 100: Explicitly needs Sept 2025 - March 2026 (exchange semester, exact dates)
+- 80-90: Mentions 7 months, semester abroad, temporary stay
+- 60-70: Mentions approximate timeframe but not exact
+- 40-50: Vague timing or slightly different dates
+- 0-30: Wrong dates, wants permanent, or much shorter/longer
 
-2. NON-SMOKING (25% weight): Are they definitely non-smokers? Look for: "Nichtraucher", "non-smoker", smoking mentions. Heavy penalty if they smoke.
+FINANCIAL_CAPABILITY:
+- 100: Clear stable income + mentions deposit readiness
+- 80-90: Good job/income mentioned (BAföG, salary, parents)
+- 60-70: Some financial info but not complete
+- 40-50: Vague financial mentions
+- 0-30: No financial info or concerning financial situation
 
-3. TIMING ALIGNMENT (20% weight): Available September 2025 - March 2026? Look for: semester dates, exchange programs, temporary stays, specific months mentioned.
+TRUSTWORTHINESS:
+- 100: References offered + stable background + employment
+- 80-90: Good background indicators (job, university, previous rentals)
+- 60-70: Some trust indicators but incomplete
+- 40-50: Basic info but no strong trust signals
+- 0-30: Red flags or very little information
 
-4. GERMAN RESIDENCY (15% weight): Are they from Germany? Look for: German cities, "aus Deutschland", German university, German address. International students score lower.
+FURNITURE_ACCEPTANCE:
+- 100: Explicitly loves furnished setup, mentions keeping everything
+- 80-90: Positive about furnished room, no changes mentioned
+- 60-70: Accepts furnished but not enthusiastic
+- 40-50: Neutral about furniture
+- 0-30: Mentions own furniture or wanting changes
 
-5. TIDINESS/CLEANLINESS (10% weight): Will they keep the place clean? Look for: "sauber", "ordentlich", "responsible", "respectful", cleanliness mentions.
+PERSONALIZATION:
+- 100: Specific details about your place, personal reasons
+- 80-90: Clearly tailored application, shows research
+- 60-70: Some personalization but generic elements
+- 40-50: Mostly generic with minor personal touches
+- 0-30: Obviously copy-pasted, no personalization
 
-Return this exact JSON format:
+RED FLAGS to check:
+- Wrong timing/dates
+- Wants to bring own furniture
+- No financial info
+- Generic copy-paste application
+- Wants longer stay
+- Group applications
+
+Return ONLY this JSON:
 {{
-    "financial_capability": 85,
-    "non_smoking": 90,
-    "timing_alignment": 80,
-    "german_residency": 70,
-    "tidiness_cleanliness": 75,
-    "reasoning": "Strong financial background, confirmed non-smoker, perfect timing",
+    "timing_alignment": 85,
+    "financial_capability": 75,
+    "trustworthiness": 80,
+    "furniture_acceptance": 90,
+    "personalization": 70,
+    "reasoning": "Exchange student with perfect timing, stable finances, loves furnished setup",
     "red_flags": [],
-    "bonus_points": 5
+    "bonus_points": 10
 }}
 """
         return prompt.strip()
 
+    def extract_response_text(self, response) -> str:
+        """Extract text from Gemini response (handles different API versions)"""
+        try:
+            # Method 1: Try candidates path first (most reliable for new API)
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    content = candidate.content
+                    if hasattr(content, 'parts') and content.parts:
+                        part = content.parts[0]
+                        if hasattr(part, 'text') and part.text:
+                            return part.text
+
+            # Method 2: Try direct text access
+            try:
+                if hasattr(response, 'text') and response.text:
+                    return response.text
+            except ValueError:
+                pass
+
+            # Method 3: Direct parts access
+            if hasattr(response, 'parts') and response.parts:
+                if response.parts[0] and hasattr(response.parts[0], 'text'):
+                    return response.parts[0].text
+
+            # Emergency fallback
+            return str(response)
+
+        except Exception as e:
+            print(f"❌ Error extracting response text: {e}")
+            return f"Extraction failed: {str(e)}"
+
     def parse_ai_response(self, response_text: str) -> TenantScore:
-        """Parse AI response and calculate weighted total score"""
+        """Parse AI response and calculate weighted total score based on YOUR priorities"""
         try:
             # Clean response text
             response_text = response_text.strip()
@@ -242,45 +224,43 @@ Return this exact JSON format:
                 end = response_text.rfind('}') + 1
                 response_text = response_text[start:end]
 
-            # Find JSON in response if mixed with other text
+            # Find JSON in response
             if '{' in response_text and '}' in response_text:
                 start = response_text.find('{')
                 end = response_text.rfind('}') + 1
                 response_text = response_text[start:end]
 
-            print(f"🔍 Parsing JSON: {response_text[:200]}...")
-
             data = json.loads(response_text)
 
-            # Validate required fields with new criteria
-            required_fields = ['financial_capability', 'non_smoking', 'timing_alignment',
-                               'german_residency', 'tidiness_cleanliness']
+            # Validate required fields with YOUR priorities
+            required_fields = ['timing_alignment', 'financial_capability', 'trustworthiness',
+                              'furniture_acceptance', 'personalization']
 
             for field in required_fields:
                 if field not in data:
                     print(f"⚠️ Missing field: {field}, setting to 50")
                     data[field] = 50
 
-            # Calculate weighted total score with new weights
+            # Calculate weighted total score with YOUR priorities
             total_score = (
-                    data['financial_capability'] * SCORING_WEIGHTS['financial_capability'] / 100 +
-                    data['non_smoking'] * SCORING_WEIGHTS['non_smoking'] / 100 +
-                    data['timing_alignment'] * SCORING_WEIGHTS['timing_alignment'] / 100 +
-                    data['german_residency'] * SCORING_WEIGHTS['german_residency'] / 100 +
-                    data['tidiness_cleanliness'] * SCORING_WEIGHTS['tidiness_cleanliness'] / 100
+                data['timing_alignment'] * SCORING_WEIGHTS['timing_alignment'] / 100 +
+                data['financial_capability'] * SCORING_WEIGHTS['financial_capability'] / 100 +
+                data['trustworthiness'] * SCORING_WEIGHTS['trustworthiness'] / 100 +
+                data['furniture_acceptance'] * SCORING_WEIGHTS['furniture_acceptance'] / 100 +
+                data['personalization'] * SCORING_WEIGHTS['personalization'] / 100
             )
 
-            # Add bonus points (if any)
+            # Add bonus points
             bonus_points = data.get('bonus_points', 0)
             total_score += bonus_points
 
             return TenantScore(
-                total_score=round(min(100, total_score), 1),  # Cap at 100
-                financial_capability=data['financial_capability'],
-                non_smoking=data['non_smoking'],
+                total_score=round(min(100, total_score), 1),
                 timing_alignment=data['timing_alignment'],
-                german_residency=data['german_residency'],
-                tidiness_cleanliness=data['tidiness_cleanliness'],
+                financial_capability=data['financial_capability'],
+                trustworthiness=data['trustworthiness'],
+                furniture_acceptance=data['furniture_acceptance'],
+                personalization=data['personalization'],
                 reasoning=data.get('reasoning', 'No reasoning provided'),
                 red_flags=data.get('red_flags', []),
                 bonus_points=bonus_points
@@ -288,64 +268,51 @@ Return this exact JSON format:
 
         except json.JSONDecodeError as e:
             print(f"❌ Failed to parse AI response as JSON: {e}")
-            print(f"Raw response: {response_text}")
-
-            # Emergency fallback: try to extract numbers from text
             return self.emergency_parse_response(response_text)
 
-        except KeyError as e:
-            print(f"❌ Missing required field in AI response: {e}")
-            print(f"Available fields: {list(data.keys()) if 'data' in locals() else 'None'}")
-            raise
-
     def emergency_parse_response(self, response_text: str) -> TenantScore:
-        """Emergency parser if JSON parsing fails - using practical criteria"""
+        """Emergency parser if JSON parsing fails - based on YOUR priorities"""
         print("🚨 Using emergency response parser...")
 
-        # Default scores for practical criteria
         scores = {
-            'financial_capability': 50,
-            'non_smoking': 50,
             'timing_alignment': 50,
-            'german_residency': 50,
-            'tidiness_cleanliness': 50
+            'financial_capability': 50,
+            'trustworthiness': 50,
+            'furniture_acceptance': 50,
+            'personalization': 50
         }
 
-        # Try to extract some basic info
         text_lower = response_text.lower()
 
-        # Look for financial indicators
-        financial_keywords = ['income', 'salary', 'job', 'bafög', 'eltern', 'parents', 'money']
-        if any(word in text_lower for word in financial_keywords):
-            scores['financial_capability'] = 70
-
-        # Look for non-smoking indicators
-        if any(word in text_lower for word in ['nichtraucher', 'non-smoker', 'rauchfrei']):
-            scores['non_smoking'] = 90
-        elif any(word in text_lower for word in ['raucher', 'smoking']):
-            scores['non_smoking'] = 10
-
-        # Look for timing indicators
-        if any(word in text_lower for word in ['september', 'march', 'semester', 'temporary']):
+        # Check timing indicators
+        if any(word in text_lower for word in ['september', 'march', '7 month', 'semester', 'exchange']):
             scores['timing_alignment'] = 75
 
-        # Look for German indicators
-        if any(word in text_lower for word in ['deutschland', 'germany', 'münchen', 'deutsch']):
-            scores['german_residency'] = 80
+        # Check financial indicators
+        if any(word in text_lower for word in ['income', 'job', 'bafög', 'salary', 'parents', 'deposit']):
+            scores['financial_capability'] = 70
 
-        # Look for tidiness indicators
-        if any(word in text_lower for word in ['sauber', 'clean', 'ordentlich', 'tidy']):
-            scores['tidiness_cleanliness'] = 75
+        # Check trustworthiness
+        if any(word in text_lower for word in ['reference', 'reliable', 'responsible', 'previous landlord']):
+            scores['trustworthiness'] = 75
+
+        # Check furniture acceptance
+        if any(word in text_lower for word in ['furnished', 'möbliert', 'furniture', 'complete setup']):
+            scores['furniture_acceptance'] = 75
+
+        # Check personalization
+        if any(word in text_lower for word in ['jutastraße', 'neuhausen', 'your place', 'specifically']):
+            scores['personalization'] = 75
 
         total_score = sum(scores[key] * SCORING_WEIGHTS[key] / 100 for key in scores)
 
         return TenantScore(
             total_score=round(total_score, 1),
-            financial_capability=scores['financial_capability'],
-            non_smoking=scores['non_smoking'],
             timing_alignment=scores['timing_alignment'],
-            german_residency=scores['german_residency'],
-            tidiness_cleanliness=scores['tidiness_cleanliness'],
+            financial_capability=scores['financial_capability'],
+            trustworthiness=scores['trustworthiness'],
+            furniture_acceptance=scores['furniture_acceptance'],
+            personalization=scores['personalization'],
             reasoning="Emergency parsing - JSON response failed",
             red_flags=["PARSING_ERROR"],
             bonus_points=0
@@ -354,45 +321,50 @@ Return this exact JSON format:
 
 # Test function
 def test_ai_evaluator():
-    """Test the AI evaluator with a sample email"""
-    print("🚀 Testing Practical AI Evaluator...")
+    """Test the AI evaluator with your priorities"""
+    print("🚀 Testing AI Evaluator with YOUR priorities...")
 
-    # Sample email data - German student with good financials
+    # Sample email - perfect timing match
     sample_email = {
-        'sender': 'max.mueller@student.uni-muenchen.de',
-        'subject': 'Bewerbung für Zimmer September-März',
+        'sender': 'anna.exchange@student.tum.de',
+        'subject': 'Zwischenmiete Jutastraße September-März - Austauschsemester',
         'date': '2025-08-15',
         'body': '''
-Hallo,
+Hallo!
 
-ich bin Max Müller, 23 Jahre alt, und studiere Informatik an der LMU München. 
-Ich suche eine Zwischenmiete von September 2025 bis März 2026 für mein Auslandssemester.
+Ich bin Anna, 23, und studiere an der TU München. Ich suche eine Zwischenmiete 
+von GENAU September 2025 bis März 2026 für mein Auslandssemester in den USA.
 
-Ich bin Nichtraucher und sehr ordentlich und sauber. Finanziell bin ich durch einen 
-Werkstudentenjob (1200€/Monat) und BAföG gut abgesichert. Die Kaution von 1608€ 
-kann ich sofort überweisen.
+Eure Wohnung in der Jutastraße ist perfekt - ich kenne Neuhausen gut und die 
+Lage ist ideal für mich. Besonders toll finde ich, dass alles möbliert ist, 
+da ich nach dem Semester direkt in die USA fliege und nichts Eigenes brauche.
 
-Ich komme aus München und kenne mich hier gut aus. Meine Eltern wohnen auch hier 
-und können als Bürgen fungieren falls nötig.
+Finanziell bin ich durch BAföG (735€) und einen Werkstudentenjob (600€) gut 
+aufgestellt. Die Kaution von 1608€ habe ich bereits auf meinem Sparkonto.
+Meine Eltern können auch als Bürgen fungieren.
 
-Das Zimmer wäre perfekt für mich, da es nur 10 Minuten zur Uni ist.
+Ich habe bereits zwei Jahre in einer WG gelebt und kann gerne Referenzen von 
+meinem vorherigen Vermieter zur Verfügung stellen. Bin sehr ordentlich und 
+respektvoll mit fremdem Eigentum.
 
-Viele Grüße,
-Max Müller
-+49 89 123456789
+Das Zimmer wäre wirklich perfekt für mich - genau die richtige Zeit und ich 
+würde alles so lassen wie es ist, da ich ja weiß, dass ihr zurückkommt!
+
+Liebe Grüße,
+Anna
         '''
     }
 
     evaluator = AIEvaluator()
     score = evaluator.evaluate_candidate(sample_email)
 
-    print(f"\n📊 Practical Evaluation Results:")
-    print(f"Total Score: {score.total_score}/100")
-    print(f"💰 Financial Capability: {score.financial_capability}/100")
-    print(f"🚭 Non-Smoking: {score.non_smoking}/100")
-    print(f"⏰ Timing Alignment: {score.timing_alignment}/100")
-    print(f"🇩🇪 German Residency: {score.german_residency}/100")
-    print(f"🧹 Tidiness/Cleanliness: {score.tidiness_cleanliness}/100")
+    print(f"\n📊 Evaluation Results (YOUR Priorities):")
+    print(f"🏆 Total Score: {score.total_score}/100")
+    print(f"⏰ Timing Alignment (35%): {score.timing_alignment}/100")
+    print(f"💰 Financial Capability (25%): {score.financial_capability}/100")
+    print(f"🤝 Trustworthiness (20%): {score.trustworthiness}/100")
+    print(f"🪑 Furniture Acceptance (15%): {score.furniture_acceptance}/100")
+    print(f"✍️ Personalization (5%): {score.personalization}/100")
     print(f"🎁 Bonus Points: {score.bonus_points}")
     print(f"🚩 Red Flags: {score.red_flags}")
     print(f"💭 Reasoning: {score.reasoning}")
