@@ -69,10 +69,10 @@ class SubtenantFinder:
 
             print(f"\n🤖 Evaluating candidate: {email['sender']}")
 
-            # Evaluate with AI
+            # Evaluate with AI using practical criteria
             score = self.ai_evaluator.evaluate_candidate(email)
 
-            # Create candidate record
+            # Create candidate record with new practical criteria
             candidate = {
                 "email_id": email['id'],
                 "sender": email['sender'],
@@ -81,12 +81,12 @@ class SubtenantFinder:
                 "processed_at": datetime.now().isoformat(),
                 "score": {
                     "total": score.total_score,
-                    "student_status": score.student_status,
-                    "non_smoking": score.non_smoking,
                     "financial_capability": score.financial_capability,
+                    "non_smoking": score.non_smoking,
                     "timing_alignment": score.timing_alignment,
-                    "communication_quality": score.communication_quality,
-                    "cultural_fit": score.cultural_fit
+                    "german_residency": score.german_residency,
+                    "tidiness_cleanliness": score.tidiness_cleanliness,
+                    "bonus_points": score.bonus_points
                 },
                 "reasoning": score.reasoning,
                 "red_flags": score.red_flags,
@@ -117,15 +117,21 @@ class SubtenantFinder:
         return False
 
     def print_candidate_summary(self, candidate: Dict):
-        """Print a summary of a candidate's evaluation"""
+        """Print a summary of a candidate's evaluation using practical criteria"""
+        score = candidate['score']
         print(f"📊 Candidate Summary:")
         print(f"   From: {candidate['sender']}")
-        print(f"   Total Score: {candidate['score']['total']}/100")
-        print(
-            f"   Top Strengths: Student={candidate['score']['student_status']}, Non-smoking={candidate['score']['non_smoking']}")
+        print(f"   🏆 Total Score: {score['total']}/100")
+        print(f"   💰 Financial: {score['financial_capability']}/100")
+        print(f"   🚭 Non-Smoking: {score['non_smoking']}/100")
+        print(f"   ⏰ Timing: {score['timing_alignment']}/100")
+        print(f"   🇩🇪 German: {score['german_residency']}/100")
+        print(f"   🧹 Tidiness: {score['tidiness_cleanliness']}/100")
+        if score.get('bonus_points', 0) > 0:
+            print(f"   🎁 Bonus: +{score['bonus_points']} points")
         if candidate['red_flags']:
             print(f"   🚩 Red Flags: {', '.join(candidate['red_flags'])}")
-        print(f"   AI Reasoning: {candidate['reasoning'][:100]}...")
+        print(f"   💭 AI Reasoning: {candidate['reasoning'][:100]}...")
 
     def get_candidate_rankings(self) -> List[Dict]:
         """Get all candidates ranked by total score"""
@@ -134,10 +140,10 @@ class SubtenantFinder:
         return candidates
 
     def show_dashboard(self):
-        """Display current dashboard with all candidates"""
-        print("\n" + "=" * 60)
-        print("🏠 PERFECT SUBTENANT FINDER - DASHBOARD")
-        print("=" * 60)
+        """Display current dashboard with all candidates using practical criteria"""
+        print("\n" + "=" * 70)
+        print("🏠 PRACTICAL SUBTENANT FINDER - DASHBOARD")
+        print("=" * 70)
 
         candidates = self.get_candidate_rankings()
 
@@ -148,30 +154,88 @@ class SubtenantFinder:
         print(f"📊 Total Candidates: {len(candidates)}")
         print(f"🏆 Best Score: {candidates[0]['score']['total']}/100")
         print(f"📈 Average Score: {sum(c['score']['total'] for c in candidates) / len(candidates):.1f}/100")
+        print(f"💰 Rent: {RENTAL_INFO['total_monthly']}€/month + {RENTAL_INFO['deposit']}€ deposit")
+        print(f"📅 Period: {RENTAL_INFO['start_date']} to {RENTAL_INFO['end_date']}")
 
-        print("\n🏆 TOP CANDIDATES:")
-        print("-" * 60)
+        print("\n🏆 TOP CANDIDATES (Practical Scoring):")
+        print("-" * 70)
 
         for i, candidate in enumerate(candidates[:5], 1):  # Show top 5
-            status_emoji = "🟢" if candidate['score']['total'] >= 80 else "🟡" if candidate['score'][
-                                                                                    'total'] >= 60 else "🔴"
+            score = candidate['score']
+            status_emoji = "🟢" if score['total'] >= 80 else "🟡" if score['total'] >= 60 else "🔴"
             flags_text = f" 🚩{len(candidate['red_flags'])}" if candidate['red_flags'] else ""
+            bonus_text = f" 🎁+{score.get('bonus_points', 0)}" if score.get('bonus_points', 0) > 0 else ""
 
             print(f"{i}. {status_emoji} {candidate['sender']}")
-            print(f"   Score: {candidate['score']['total']}/100{flags_text}")
+            print(f"   Score: {score['total']}/100{flags_text}{bonus_text}")
             print(f"   Date: {candidate['date'][:10]}")
-            print(
-                f"   Strengths: Student={candidate['score']['student_status']}, Financial={candidate['score']['financial_capability']}")
+
+            # Show key practical scores
+            print(f"   💰 Financial: {score['financial_capability']}/100 | "
+                  f"🚭 Non-Smoking: {score['non_smoking']}/100 | "
+                  f"⏰ Timing: {score['timing_alignment']}/100")
+            print(f"   🇩🇪 German: {score['german_residency']}/100 | "
+                  f"🧹 Tidiness: {score['tidiness_cleanliness']}/100")
+
+            # Highlight red flags
+            if candidate['red_flags']:
+                print(f"   🚨 Issues: {', '.join(candidate['red_flags'])}")
             print()
 
-        print("-" * 60)
-        print("Next: Implement Secretary Problem Algorithm (Day 5-6)")
+        print("-" * 70)
+        print("📋 PRACTICAL CRITERIA WEIGHTS:")
+        print("   💰 Financial Capability: 30% (most important)")
+        print("   🚭 Non-Smoking: 25% (absolute requirement)")
+        print("   ⏰ Timing Alignment: 20% (Sept 2025 - March 2026)")
+        print("   🇩🇪 German Residency: 15% (legal/deposit security)")
+        print("   🧹 Tidiness/Cleanliness: 10% (property care)")
+        print("\nNext: Implement Secretary Problem Algorithm (Day 5-6)")
+
+    def identify_top_candidates(self):
+        """Identify candidates who meet practical requirements"""
+        candidates = self.get_candidate_rankings()
+
+        excellent_candidates = []
+        good_candidates = []
+        problematic_candidates = []
+
+        for candidate in candidates:
+            score = candidate['score']
+
+            # Excellent: High overall score, no major red flags
+            if (score['total'] >= 80 and
+                    score['non_smoking'] >= 80 and
+                    score['financial_capability'] >= 70 and
+                    len(candidate['red_flags']) == 0):
+                excellent_candidates.append(candidate)
+
+            # Good: Decent scores, minor issues
+            elif (score['total'] >= 65 and
+                  score['non_smoking'] >= 70 and
+                  score['financial_capability'] >= 60):
+                good_candidates.append(candidate)
+
+            # Problematic: Major issues
+            else:
+                problematic_candidates.append(candidate)
+
+        if excellent_candidates:
+            print(f"\n🌟 {len(excellent_candidates)} EXCELLENT candidates found!")
+            for candidate in excellent_candidates[:3]:
+                print(f"   • {candidate['sender']} ({candidate['score']['total']}/100)")
+
+        if good_candidates:
+            print(f"\n👍 {len(good_candidates)} GOOD candidates found")
+
+        if problematic_candidates:
+            print(f"\n⚠️ {len(problematic_candidates)} candidates have issues")
 
     def run_analysis(self):
-        """Main function to run the tenant analysis"""
-        print("🚀 Starting Perfect Subtenant Finder...")
-        print("📧 Processing all incoming emails as rental applications")
-        print(f"🏠 Rental Period: {RENTAL_INFO['start_date']} to {RENTAL_INFO['end_date']}")
+        """Main function to run the practical tenant analysis"""
+        print("🚀 Starting Practical Subtenant Finder...")
+        print("📧 Processing rental applications with practical criteria")
+        print(
+            f"🏠 Rental: {RENTAL_INFO['total_monthly']}€/month | {RENTAL_INFO['start_date']} to {RENTAL_INFO['end_date']}")
 
         # Process new emails
         new_candidates = self.process_new_emails()
@@ -179,11 +243,14 @@ class SubtenantFinder:
         # Show dashboard
         self.show_dashboard()
 
+        # Identify top candidates
+        self.identify_top_candidates()
+
 
 def main():
     """Main entry point"""
-    print("🏠 Perfect Subtenant Finder - Day 1 Setup")
-    print("=" * 50)
+    print("🏠 Practical Subtenant Finder - Updated Scoring System")
+    print("=" * 60)
 
     # Check environment setup
     if not os.getenv('GEMINI_API_KEY'):

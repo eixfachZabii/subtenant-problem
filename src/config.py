@@ -21,35 +21,50 @@ EMAIL_CONFIG = {
     "max_emails_per_check": 50  # Prevent overwhelming the system
 }
 
-# Scoring Weights (must sum to 100)
+# UPDATED: Practical Scoring Weights (must sum to 100)
 SCORING_WEIGHTS = {
-    "student_status": 25,      # Must be registered student
-    "non_smoking": 20,         # Absolute requirement
-    "financial_capability": 20, # Can afford rent + deposit
-    "timing_alignment": 15,    # Available for exact period
-    "communication_quality": 10, # Professional, complete application
-    "cultural_fit": 10         # WG lifestyle compatibility
+    "financial_capability": 30,  # Can afford rent + deposit + utilities
+    "non_smoking": 25,           # Absolute requirement - no exceptions
+    "timing_alignment": 20,      # Available for exact period (Sept 2025 - March 2026)
+    "german_residency": 15,      # From Germany (easier for deposits, legal issues)
+    "tidiness_cleanliness": 10,  # Clean, organized, respectful of property
 }
 
-# Required Keywords for Scoring
+# Required Keywords for Practical Scoring
 EVALUATION_KEYWORDS = {
-    "student_indicators": [
-        "student", "studentin", "studium", "uni", "universität", "hochschule",
-        "semester", "bachelor", "master", "phd", "immatrikuliert", "enrolled",
-        "studying", "college", "campus", "lecture", "vorlesung"
+    "financial_indicators": [
+        "einkommen", "income", "gehalt", "salary", "bafög", "bafoeg", "scholarship", "stipendium",
+        "eltern", "parents", "bürgschaft", "guarantee", "job", "arbeit", "arbeite", "angestellt",
+        "finanzierung", "budget", "bezahlen", "afford", "kaution", "deposit", "euro", "€",
+        "verdiene", "earning", "werkstudent", "minijob", "vollzeit", "teilzeit"
     ],
     "non_smoking_indicators": [
-        "nichtraucher", "non-smoker", "nonsmoker", "nicht rauchen",
-        "no smoking", "rauchfrei", "smoke-free"
+        "nichtraucher", "nichtraucherin", "non-smoker", "nonsmoker", "nicht rauchen",
+        "no smoking", "rauchfrei", "smoke-free", "anti-raucher"
     ],
-    "financial_indicators": [
-        "einkommen", "income", "gehalt", "salary", "bafög", "scholarship",
-        "eltern", "parents", "bürgschaft", "guarantee", "job", "arbeit",
-        "finanzierung", "financing", "budget"
+    "smoking_indicators": [
+        "raucher", "raucherin", "smoking", "rauchen", "zigaretten", "cigarettes"
     ],
     "timing_indicators": [
-        "september", "märz", "march", "7 monate", "7 months", "semester",
-        "exchange", "austausch", "temporary", "zwischenmiete"
+        "september", "sept", "märz", "march", "2025", "2026", "7 monate", "7 months",
+        "semester", "exchange", "austausch", "temporary", "zwischenmiete", "befristet",
+        "ab september", "bis märz", "from september", "until march"
+    ],
+    "german_residency_indicators": [
+        "deutschland", "germany", "deutsch", "german", "de", "münchen", "munich",
+        "berlin", "hamburg", "köln", "düsseldorf", "stuttgart", "frankfurt",
+        "geboren in", "born in", "aus deutschland", "from germany", "deutsche",
+        "bundesland", "staat", "staatsangehörigkeit", "nationality"
+    ],
+    "international_indicators": [
+        "spain", "spanien", "italy", "italien", "france", "frankreich", "usa",
+        "china", "india", "brasil", "mexico", "turkey", "türkei", "poland", "polen",
+        "international", "exchange student", "erasmus", "visa", "permit"
+    ],
+    "tidiness_indicators": [
+        "sauber", "clean", "ordentlich", "tidy", "organized", "organisiert", "aufgeräumt",
+        "reinlich", "hygiene", "respektvoll", "respectful", "verantwortlich", "responsible",
+        "zuverlässig", "reliable", "pfleglich", "careful", "schonend"
     ]
 }
 
@@ -63,8 +78,31 @@ SECRETARY_ALGORITHM = {
 
 # API Configuration
 API_CONFIG = {
-    "gemini_model": "gemini-2.5-flash",  # Updated model name
-    "max_tokens": 1000,
-    "temperature": 0.3,  # Lower for more consistent scoring
+    "gemini_model": "gemini-1.5-flash",  # Working model for bypass
+    "max_tokens": 800,
+    "temperature": 0.1,  # Lower for more consistent scoring
     "timeout_seconds": 30
+}
+
+# PRACTICAL RED FLAGS - Auto-reject candidates
+RED_FLAGS = {
+    "smoking_mentioned": "Mentions smoking or being a smoker",
+    "wrong_timeframe": "Wants permanent rental or wrong dates",
+    "no_financial_info": "No mention of income, job, or financial capability",
+    "high_risk_country": "From country with difficult legal recourse",
+    "too_cheap": "Seems to expect much lower rent",
+    "group_rental": "Wants to bring multiple people",
+    "pets_mentioned": "Mentions having pets (if not allowed)",
+    "party_lifestyle": "Mentions parties, loud music, drinking heavily"
+}
+
+# PRACTICAL BONUS POINTS
+BONUS_CRITERIA = {
+    "german_citizen": 10,           # German passport holder
+    "munich_local": 5,              # Already lives in Munich
+    "professional_job": 10,         # Has stable employment
+    "previous_wg_experience": 5,    # Mentions previous WG living
+    "references_offered": 10,       # Offers references from previous landlords
+    "early_availability": 5,        # Available before September if needed
+    "deposit_ready": 10,            # Mentions having deposit ready
 }
